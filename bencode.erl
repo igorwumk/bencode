@@ -1,0 +1,92 @@
+-module(bencode).
+-export([parse/1, parse_all/1, parse_file/1]).
+
+%% API
+
+parse(<<$i, _/binary>> = Bin) -> parse_int(Bin);
+parse(<<$l, _/binary>> = Bin) -> parse_list(Bin);
+parse(<<$d, _/binary>> = Bin) -> parse_dict(Bin);
+parse(<<Digit, _/binary>> = Bin) when Digit >= $0, Digit =< $9 -> parse_string(Bin);
+parse(_) -> {error, not_implemented}.
+
+parse_all(Bin) ->
+    case parse(Bin) of
+        {error, Reason} -> {error, {parse, Reason}};
+        {Value, <<>>} -> Value;
+        {_Value, _Rest} -> {error, trailing_data}
+    end.
+
+parse_file(Filename) -> 
+    case file:read_file(Filename) of
+        {ok, Bin} ->
+            parse_all(Bin);
+        {error, Reason} ->
+            {error, {file, Reason}}
+    end.
+
+%% Private functions
+
+read_number(Bin, Terminator) ->
+    read_number(Bin, Terminator, 0).
+
+read_number(<<Digit, Rest/binary>>, Terminator, Acc) when Digit >= $0, Digit =< $9 ->
+    NewAcc = Acc * 10 + (Digit - $0),
+    read_number(Rest, Terminator, NewAcc);
+
+read_number(<<Terminator, Rest/binary>>, Terminator, Acc) -> 
+    {Acc, Rest};
+
+read_number(_, _, _) -> 
+    {error, invalid_number}.
+
+parse_string(Bin) ->
+    {Len, AfterColon} = read_string_length(Bin),
+    <<Str:Len/binary, Rest/binary>> = AfterColon,
+    {Str, Rest}.
+
+read_string_length(Bin) -> 
+    read_number(Bin, $:).
+ 
+parse_int(<<$i, Bin/binary>>) -> 
+    read_int(Bin).
+
+read_int(<<$-, Rest/binary>>) -> 
+    case read_number(Rest, $e) of
+        {N, R} -> {-N, R};
+        Error -> Error
+    end;
+
+read_int(Bin) -> 
+    read_number(Bin, $e).
+
+parse_list(<<$l, Rest/binary>>) ->
+    read_list(Rest, []).
+
+read_list(<<$e, Rest/binary>>, Acc) ->
+    {lists:reverse(Acc), Rest};
+
+read_list(Bin, Acc) ->
+    case parse(Bin) of
+        {Value, Rest} when Value =/= error ->
+            read_list(Rest, [Value | Acc]); %% Appending at list start is O(1), at list end is O(n)
+        {error, Reason} -> 
+            {error, Reason}
+    end.
+
+parse_dict(<<$d, Rest/binary>>) ->
+    read_dict(Rest, #{}).
+
+read_dict(<<$e, Rest/binary>>, Acc) ->
+    {Acc, Rest};
+
+read_dict(Bin, Acc) ->
+    case parse(Bin) of
+        {error, _} = Err -> Err;
+        {Key, Rest1} when Key =/= error ->
+            case parse(Rest1) of
+                {error, _} = Err -> Err;
+                {Value, Rest2} -> 
+                    read_dict(Rest2, Acc#{Key => Value})
+            end;
+        _ -> {error, invalid_dict_key}
+    end.

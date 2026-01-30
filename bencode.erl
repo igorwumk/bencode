@@ -74,11 +74,15 @@ read_list(Bin, Acc) ->
     end.
 
 parse_dict(<<$d, Rest/binary>>) ->
-    read_dict(Rest, #{}).
+    %%read_dict(Rest, #{}).
+    read_dict(Rest, #{}, none).
+
+%% No dictionary ordering
 
 read_dict(<<$e, Rest/binary>>, Acc) ->
     {Acc, Rest};
 
+%% TODO: change body to similar of read_dict/3 or remove
 read_dict(Bin, Acc) ->
     case parse(Bin) of
         {error, _} = Err -> Err;
@@ -89,4 +93,29 @@ read_dict(Bin, Acc) ->
                     read_dict(Rest2, Acc#{Key => Value})
             end;
         _ -> {error, invalid_dict_key}
+    end.
+
+%% With dictionary ordering
+
+read_dict(<<$e, Rest/binary>>, Acc, _PrevKey) -> 
+    {Acc, Rest};
+
+read_dict(Bin, Acc, PrevKey) ->
+    case Bin of
+        <<Digit, _/binary>> when Digit >= $0, Digit =< $9 ->
+            {Key, Rest1} = parse_string(Bin),
+            %% ordering check (lenient)
+            _  = case PrevKey of
+                none -> ok;
+                _ when Key > PrevKey -> ok;
+                _ -> out_of_order
+            end,
+            case parse(Rest1) of
+                {error, Reason} -> 
+                    {error, {parse, Reason}};
+                {Value, Rest2} ->
+                    read_dict(Rest2, Acc#{Key => Value}, Key)
+            end;
+        _ -> 
+            {error, {parse, invalid_dict_key}}
     end.

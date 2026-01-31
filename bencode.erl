@@ -50,6 +50,12 @@ read_string_length(Bin) ->
 parse_int(<<$i, Bin/binary>>) -> 
     read_int(Bin).
 
+read_int(<<$0, Digit, _/binary>>) when Digit >= $0, Digit =< $9 ->
+    {error, invalid_number};
+
+read_int(<<$-, $0, _/binary>>) ->
+    {error, invalid_number};
+
 read_int(<<$-, Rest/binary>>) -> 
     case read_number(Rest, $e) of
         {N, R} -> {-N, R};

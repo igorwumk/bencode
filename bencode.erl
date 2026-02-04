@@ -7,6 +7,7 @@ parse(<<$i, _/binary>> = Bin) -> parse_int(Bin);
 parse(<<$l, _/binary>> = Bin) -> parse_list(Bin);
 parse(<<$d, _/binary>> = Bin) -> parse_dict(Bin);
 parse(<<Digit, _/binary>> = Bin) when Digit >= $0, Digit =< $9 -> parse_string(Bin);
+parse(<<>>) -> {error, unexpected_eof};
 parse(_) -> {error, not_implemented}.
 
 parse_all(Bin) ->
@@ -71,10 +72,15 @@ parse_list(<<$l, Rest/binary>>) ->
 read_list(<<$e, Rest/binary>>, Acc) ->
     {lists:reverse(Acc), Rest};
 
+read_list(<<>>, _) ->
+    {error, unexpected_eof};
+
 read_list(Bin, Acc) ->
     case parse(Bin) of
         {Value, Rest} when Value =/= error ->
             read_list(Rest, [Value | Acc]); %% Appending at list start is O(1), at list end is O(n)
+        {error, not_implemented} -> 
+            {error, invalid_token};
         {error, Reason} -> 
             {error, Reason}
     end.
@@ -117,11 +123,13 @@ read_dict(Bin, Acc, PrevKey) ->
                 _ -> out_of_order
             end,
             case parse(Rest1) of
+                {error, not_implemented} ->
+                    {error, invalid_token};
                 {error, Reason} -> 
-                    {error, {parse, Reason}};
+                    {error, Reason};
                 {Value, Rest2} ->
                     read_dict(Rest2, Acc#{Key => Value}, Key)
             end;
         _ -> 
-            {error, {parse, invalid_dict_key}}
+            {error, invalid_dict_key}
     end.

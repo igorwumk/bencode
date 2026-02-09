@@ -1,5 +1,5 @@
 -module(bencode).
--export([parse/1, parse_all/1, parse_file/1]).
+-export([parse/1, parse_all/1, parse_file/1, encode/1]).
 
 %% API
 
@@ -132,4 +132,58 @@ read_dict(Bin, Acc, PrevKey) ->
             end;
         _ -> 
             {error, invalid_dict_key}
+    end.
+
+encode(Value) when is_integer(Value) -> encode_int(Value);
+encode(Value) when is_binary(Value) -> encode_string(Value);
+encode(Value) when is_list(Value) -> encode_list(Value);
+encode(Value) when is_map(Value) -> encode_dict(Value);
+encode(_) -> {error, input_not_supported}.
+
+encode_int(Value) -> 
+    BinaryInt = integer_to_binary(Value),
+    <<"i", BinaryInt/binary, "e">>.
+    
+
+encode_string(Value) ->
+    Size = byte_size(Value),
+    SizeBin = integer_to_binary(Size),
+    <<SizeBin/binary, ":", Value/binary>>.
+
+
+encode_list(Value) -> 
+    case encode_list(Value, <<>>) of
+        {error, Reason} -> {error, Reason};
+        ItemsBin -> <<"l", ItemsBin/binary, "e">>
+    end.
+
+encode_list([], Acc) -> Acc;
+encode_list([H | T], Acc) ->
+    case encode(H) of
+        {error, Reason} -> {error, Reason};
+        Bin when is_binary(Bin) -> encode_list(T, <<Acc/binary, Bin/binary>>)
+    end.
+
+encode_dict(Value) -> 
+    Pairs = maps:to_list(Value),
+    case encode_dict(sort_pairs(Pairs), <<>>) of
+        {error, Reason} -> {error, Reason};
+        ItemsBin -> <<"d", ItemsBin/binary, "e">>
+    end.
+
+sort_pairs(Pairs) -> lists:sort(fun({K1, _}, {K2, _}) -> K1 =< K2 end, Pairs).
+
+encode_dict([], Acc) -> Acc;
+encode_dict([{Key, Value} | T], Acc) ->
+    case is_binary(Key) of
+        false -> {error, input_not_supported};
+        true -> 
+            case encode_string(Key) of 
+                {error, Reason} -> {error, Reason};
+                KeyBin ->
+                    case encode(Value) of
+                        {error, Reason} -> {error, Reason};
+                        ValBin -> encode_dict(T, <<Acc/binary, KeyBin/binary, ValBin/binary>>)
+                    end
+            end
     end.

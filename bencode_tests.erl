@@ -93,3 +93,31 @@ dict_invalid_token_test_() ->
     [
         ?_test(?assertEqual({error, {parse, invalid_token}}, bencode:parse_all(<<"d3:keyXe">>)))
     ].
+
+encode_int_test_() ->
+    [
+        ?_test(?assertEqual(<<"i0e">>, bencode:encode(0))),
+        ?_test(?assertEqual(<<"i-42e">>, bencode:encode(-42)))
+    ].
+
+encode_string_test_() ->
+    [
+        ?_test(?assertEqual(<<"0:">>, bencode:encode(<<"">>))),
+        ?_test(?assertEqual(<<"4:spam">>, bencode:encode(<<"spam">>))),
+        ?_test(?assertEqual(<<"11:hello world">>, bencode:encode(<<"hello world">>)))
+    ].
+
+encode_list_test_() ->
+    [
+        ?_test(?assertEqual(<<"le">>, bencode:encode([]))),
+        ?_test(?assertEqual(<<"li1ei2ee">>, bencode:encode([1, 2]))),
+        ?_test(?assertEqual(<<"li1e4:spame">>, bencode:encode([1, <<"spam">>]))),
+        ?_test(?assertEqual(<<"lli1ei2eee">>, bencode:encode([[1, 2]])))
+    ].
+
+encode_dict_test() ->
+    [
+        ?_test(?assertEqual(<<"de">>, bencode:encode(#{}))),
+        ?_test(?assertEqual(<<"d3:cow3:moo4:spam4:eggse">>, bencode:encode(#{<<"cow">> => <<"moo">>, <<"spam">> => <<"eggs">>}))),
+        ?_test(?assertEqual({error, not_implemented}, bencode:encode(#{atom => <<"no">>})))
+    ].

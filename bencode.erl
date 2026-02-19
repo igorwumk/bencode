@@ -90,7 +90,7 @@ read_list(<<>>, _) ->
 read_list(Bin, Acc) ->
     case parse(Bin) of
         {Value, Rest} when Value =/= error ->
-            read_list(Rest, [Value | Acc]); %% Appending at list start is O(1), at list end is O(n)
+            read_list(Rest, [Value | Acc]);
         {error, not_implemented} -> 
             {error, invalid_token};
         {error, Reason} -> 
@@ -98,28 +98,7 @@ read_list(Bin, Acc) ->
     end.
 
 parse_dict(<<$d, Rest/binary>>) ->
-    %%read_dict(Rest, #{}).
     read_dict(Rest, #{}, none).
-
-%% No dictionary ordering
-
-read_dict(<<$e, Rest/binary>>, Acc) ->
-    {Acc, Rest};
-
-%% TODO: change body to similar of read_dict/3 or remove
-read_dict(Bin, Acc) ->
-    case parse(Bin) of
-        {error, _} = Err -> Err;
-        {Key, Rest1} when Key =/= error ->
-            case parse(Rest1) of
-                {error, _} = Err -> Err;
-                {Value, Rest2} -> 
-                    read_dict(Rest2, Acc#{Key => Value})
-            end;
-        _ -> {error, invalid_dict_key}
-    end.
-
-%% With dictionary ordering
 
 read_dict(<<$e, Rest/binary>>, Acc, _PrevKey) -> 
     {Acc, Rest};

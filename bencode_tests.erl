@@ -3,8 +3,8 @@
 
 integer_test_() -> 
     [
-        ?_test(?assertEqual(123, bencode:parse_all(<<"i123e">>))),
-        ?_test(?assertEqual(-42, bencode:parse_all(<<"i-42e">>)))
+        ?_test(?assertEqual({ok, 123}, bencode:parse_all(<<"i123e">>))),
+        ?_test(?assertEqual({ok, -42}, bencode:parse_all(<<"i-42e">>)))
     ].
 
 integer_no_terminator_test_() ->
@@ -24,7 +24,7 @@ integer_negative_zero_test_() ->
 
 string_test_() -> 
     [
-        ?_test(?assertEqual(<<"spam">>, bencode:parse_all(<<"4:spam">>)))
+        ?_test(?assertEqual({ok, <<"spam">>}, bencode:parse_all(<<"4:spam">>)))
     ].
 
 string_trailing_data_test_() -> 
@@ -34,19 +34,19 @@ string_trailing_data_test_() ->
 
 list_test_() ->
     [
-        ?_test(?assertEqual([], bencode:parse_all(<<"le">>))),
-        ?_test(?assertEqual([<<"spam">>], bencode:parse_all(<<"l4:spame">>))),
-        ?_test(?assertEqual([1, 2, 3], bencode:parse_all(<<"li1ei2ei3ee">>)))
+        ?_test(?assertEqual({ok, []}, bencode:parse_all(<<"le">>))),
+        ?_test(?assertEqual({ok, [<<"spam">>]}, bencode:parse_all(<<"l4:spame">>))),
+        ?_test(?assertEqual({ok, [1, 2, 3]}, bencode:parse_all(<<"li1ei2ei3ee">>)))
     ].
 
 list_mixed_test_() ->
     [
-        ?_test(?assertEqual([<<"spam">>, 42, <<"eggs">>], bencode:parse_all(<<"l4:spami42e4:eggse">>)))
+        ?_test(?assertEqual({ok, [<<"spam">>, 42, <<"eggs">>]}, bencode:parse_all(<<"l4:spami42e4:eggse">>)))
     ].
 
 list_nested_test_() ->
     [
-        ?_test(?assertEqual([[<<"abc">>], -1, <<"e">>], bencode:parse_all(<<"ll3:abcei-1e1:ee">>)))
+        ?_test(?assertEqual({ok, [[<<"abc">>], -1, <<"e">>]}, bencode:parse_all(<<"ll3:abcei-1e1:ee">>)))
     ].
 
 list_error_test_() ->
@@ -61,22 +61,22 @@ list_invalid_item_test_() ->
 
 dict_empty_test_() ->
     [
-        ?_test(?assertEqual(#{}, bencode:parse_all(<<"de">>)))
+        ?_test(?assertEqual({ok, #{}}, bencode:parse_all(<<"de">>)))
     ].
 
 dict_single_test_() ->
     [
-        ?_test(?assertEqual(#{<<"cow">> => <<"moo">>}, bencode:parse_all(<<"d3:cow3:mooe">>)))
+        ?_test(?assertEqual({ok, #{<<"cow">> => <<"moo">>}}, bencode:parse_all(<<"d3:cow3:mooe">>)))
     ].
 
 dict_multi_test_() ->
     [
-        ?_test(?assertEqual(#{<<"cow">> => <<"moo">>, <<"spam">> => <<"eggs">>}, bencode:parse_all(<<"d3:cow3:moo4:spam4:eggse">>)))
+        ?_test(?assertEqual({ok, #{<<"cow">> => <<"moo">>, <<"spam">> => <<"eggs">>}}, bencode:parse_all(<<"d3:cow3:moo4:spam4:eggse">>)))
     ].
 
 dict_nested_test_() ->
     [
-        ?_test(?assertEqual(#{<<"list">> => [1, 2]}, bencode:parse_all(<<"d4:listli1ei2eee">>)))
+        ?_test(?assertEqual({ok, #{<<"list">> => [1, 2]}}, bencode:parse_all(<<"d4:listli1ei2eee">>)))
     ].
 
 dict_invalid_key_test_() -> 
@@ -96,28 +96,28 @@ dict_invalid_token_test_() ->
 
 encode_int_test_() ->
     [
-        ?_test(?assertEqual(<<"i0e">>, bencode:encode(0))),
-        ?_test(?assertEqual(<<"i-42e">>, bencode:encode(-42)))
+        ?_test(?assertEqual({ok, <<"i0e">>}, bencode:encode_all(0))),
+        ?_test(?assertEqual({ok, <<"i-42e">>}, bencode:encode_all(-42)))
     ].
 
 encode_string_test_() ->
     [
-        ?_test(?assertEqual(<<"0:">>, bencode:encode(<<"">>))),
-        ?_test(?assertEqual(<<"4:spam">>, bencode:encode(<<"spam">>))),
-        ?_test(?assertEqual(<<"11:hello world">>, bencode:encode(<<"hello world">>)))
+        ?_test(?assertEqual({ok, <<"0:">>}, bencode:encode_all(<<"">>))),
+        ?_test(?assertEqual({ok, <<"4:spam">>}, bencode:encode_all(<<"spam">>))),
+        ?_test(?assertEqual({ok, <<"11:hello world">>}, bencode:encode_all(<<"hello world">>)))
     ].
 
 encode_list_test_() ->
     [
-        ?_test(?assertEqual(<<"le">>, bencode:encode([]))),
-        ?_test(?assertEqual(<<"li1ei2ee">>, bencode:encode([1, 2]))),
-        ?_test(?assertEqual(<<"li1e4:spame">>, bencode:encode([1, <<"spam">>]))),
-        ?_test(?assertEqual(<<"lli1ei2eee">>, bencode:encode([[1, 2]])))
+        ?_test(?assertEqual({ok, <<"le">>}, bencode:encode_all([]))),
+        ?_test(?assertEqual({ok, <<"li1ei2ee">>}, bencode:encode_all([1, 2]))),
+        ?_test(?assertEqual({ok, <<"li1e4:spame">>}, bencode:encode_all([1, <<"spam">>]))),
+        ?_test(?assertEqual({ok, <<"lli1ei2eee">>}, bencode:encode_all([[1, 2]])))
     ].
 
 encode_dict_test() ->
     [
-        ?_test(?assertEqual(<<"de">>, bencode:encode(#{}))),
-        ?_test(?assertEqual(<<"d3:cow3:moo4:spam4:eggse">>, bencode:encode(#{<<"cow">> => <<"moo">>, <<"spam">> => <<"eggs">>}))),
-        ?_test(?assertEqual({error, not_implemented}, bencode:encode(#{atom => <<"no">>})))
+        ?_test(?assertEqual({ok, <<"de">>}, bencode:encode_all(#{}))),
+        ?_test(?assertEqual({ok, <<"d3:cow3:moo4:spam4:eggse">>}, bencode:encode_all(#{<<"cow">> => <<"moo">>, <<"spam">> => <<"eggs">>}))),
+        ?_test(?assertEqual({error, not_implemented}, bencode:encode_all(#{atom => <<"no">>})))
     ].

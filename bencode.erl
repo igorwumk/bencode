@@ -1,5 +1,5 @@
 -module(bencode).
--export([parse/1, parse_all/1, parse_file/1, encode/1]).
+-export([parse/1, parse_all/1, parse_file/1, encode/1, encode_all/1]).
 
 %% API
 
@@ -13,7 +13,7 @@ parse(_) -> {error, not_implemented}.
 parse_all(Bin) ->
     case parse(Bin) of
         {error, Reason} -> {error, {parse, Reason}};
-        {Value, <<>>} -> Value;
+        {Value, <<>>} -> {ok, Value};
         {_Value, _Rest} -> {error, trailing_data}
     end.
 
@@ -23,6 +23,18 @@ parse_file(Filename) ->
             parse_all(Bin);
         {error, Reason} ->
             {error, {file, Reason}}
+    end.
+
+encode(Value) when is_integer(Value) -> encode_int(Value);
+encode(Value) when is_binary(Value) -> encode_string(Value);
+encode(Value) when is_list(Value) -> encode_list(Value);
+encode(Value) when is_map(Value) -> encode_dict(Value);
+encode(_) -> {error, input_not_supported}.
+
+encode_all(Bin) ->
+    case encode(Bin) of
+        {error, Reason} -> {error, {encode, Reason}};
+        Value -> {ok, Value}
     end.
 
 %% Private functions
@@ -133,12 +145,6 @@ read_dict(Bin, Acc, PrevKey) ->
         _ -> 
             {error, invalid_dict_key}
     end.
-
-encode(Value) when is_integer(Value) -> encode_int(Value);
-encode(Value) when is_binary(Value) -> encode_string(Value);
-encode(Value) when is_list(Value) -> encode_list(Value);
-encode(Value) when is_map(Value) -> encode_dict(Value);
-encode(_) -> {error, input_not_supported}.
 
 encode_int(Value) -> 
     BinaryInt = integer_to_binary(Value),
